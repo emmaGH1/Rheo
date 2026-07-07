@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0A0A0B;
+  --color-surface: #17171A;
+  --color-text-primary: #F2F0EB;
+  --color-text-muted: #8C8A85;
+  --color-brand-accent: #D97B3F;
+  --color-risk-allow: #4ADE80;
+  --color-risk-sanitize: #EAB308;
+  --color-risk-quarantine: #F87171;
+
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #0A0A0B;
+  color: #F2F0EB;
+  font-family: "Inter", system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #0A0A0B; }
+::-webkit-scrollbar-thumb { background: #2a2a2d; border-radius: 2px; }
+
+/* Pipeline bracket animation */
+@keyframes bracketFadeIn {
+  from { opacity: 0; transform: scale(1.05); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes descFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.bracket-active {
+  animation: bracketFadeIn 0.3s ease forwards;
+}
+
+.desc-active {
+  animation: descFadeIn 0.4s ease 0.1s forwards;
+}
+
+/* Hero particle canvas */
+#particle-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Log table row hover */
+.log-row:hover td {
+  background-color: rgba(255,255,255,0.02);
+}
+
+/* Code block syntax highlight */
+.code-block {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* Amber mesh card gradient for footer CTA */
+.amber-mesh-card {
+  background:
+    radial-gradient(ellipse 65% 55% at 50% 50%, rgba(217, 123, 63, 0.16) 0%, transparent 70%),
+    radial-gradient(circle at 15% 25%, rgba(217, 123, 63, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 85% 75%, rgba(217, 123, 63, 0.06) 0%, transparent 50%),
+    #0A0A0B;
+  border: 1px solid rgba(217, 123, 63, 0.12);
+  background-size: cover;
+}
+
+/* Dot grid texture for amber mesh card */
+.dot-texture {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
