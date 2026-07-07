@@ -46,101 +46,6 @@ const PIPELINE_STAGES = [
   },
 ];
 
-// ─── Particle Canvas Hook ─────────────────────────────────────────────────────
-
-function useParticleCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
-  const scrollVelRef = useRef(0);
-  const lastScrollY = useRef(0);
-  const animRef = useRef<number>(0);
-  const particlesRef = useRef<{ hx: number; hy: number }[]>([]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const COLS = 40;
-    const ROWS = 25;
-    const DOT_RADIUS = 1.2;
-    const DOT_COLOR = "rgba(26, 20, 16, 0.12)"; // Soft tint on off-white
-
-    function buildGrid() {
-      if (!canvas) return;
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      canvas.width = w;
-      canvas.height = h;
-      const xStep = w / COLS;
-      const yStep = h / ROWS;
-      particlesRef.current = [];
-      for (let r = 0; r <= ROWS; r++) {
-        for (let c = 0; c <= COLS; c++) {
-          particlesRef.current.push({ hx: c * xStep, hy: r * yStep });
-        }
-      }
-    }
-
-    buildGrid();
-
-    let ticking = false;
-    function onScroll() {
-      const sy = window.scrollY;
-      scrollVelRef.current = sy - lastScrollY.current;
-      lastScrollY.current = sy;
-      if (!ticking) {
-        requestAnimationFrame(() => { ticking = false; });
-        ticking = true;
-      }
-    }
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    let dampedVel = 0;
-
-    function draw() {
-      if (!canvas || !ctx) return;
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-
-      dampedVel += (scrollVelRef.current - dampedVel) * 0.15;
-      scrollVelRef.current *= 0.85;
-
-      const cx = w / 2;
-      const cy = h / 2;
-
-      for (const p of particlesRef.current) {
-        const dx = p.hx - cx;
-        const dy = p.hy - cy;
-        const distFromCenter = Math.sqrt(dx * dx + dy * dy);
-        const maxDist = Math.sqrt(cx * cx + cy * cy);
-        const falloff = 1 - (distFromCenter / maxDist) * 0.7;
-
-        const compression = dampedVel * falloff * 0.6;
-        const renderY = p.hy + compression;
-
-        ctx.beginPath();
-        ctx.arc(p.hx, renderY, DOT_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = DOT_COLOR;
-        ctx.fill();
-      }
-
-      animRef.current = requestAnimationFrame(draw);
-    }
-
-    animRef.current = requestAnimationFrame(draw);
-
-    const ro = new ResizeObserver(buildGrid);
-    ro.observe(canvas);
-
-    return () => {
-      cancelAnimationFrame(animRef.current);
-      window.removeEventListener("scroll", onScroll);
-      ro.disconnect();
-    };
-  }, [canvasRef]);
-}
 
 
 
@@ -179,8 +84,6 @@ function BracketButton({ children, onClick, disabled, className = "" }: { childr
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useParticleCanvas(canvasRef);
 
   // Nav state
   const [menuOpen, setMenuOpen] = useState(false);
@@ -194,14 +97,6 @@ export default function Home() {
     { time: "19:25:40", url: "https://safe-api-docs.io/v1", risk: 0.0, fee: "0.001030", action: "ALLOW" }
   ]);
 
-  // Scroll tracking state
-  const [scrollY, setScrollY] = useState(0);
-  const [pipelineOpacity, setPipelineOpacity] = useState(0);
-
-  // Pipeline scroll state
-  const pipelineRef = useRef<HTMLDivElement>(null);
-  const [activeStage, setActiveStage] = useState(0);
-  const [pipelineProgress, setPipelineProgress] = useState(0);
 
   // Viewport Slider State
   const [activeSlide, setActiveSlide] = useState(0);
@@ -219,31 +114,18 @@ export default function Home() {
   const [simResult, setSimResult] = useState<any>(null);
   const [requests, setRequests] = useState<ProxyRequest[]>([]);
   const [metrics, setMetrics] = useState({ totalRequests: 0, volumeUsdc: 0, blockedThreats: 0 });
+  const [rowLimit, setRowLimit] = useState(25);
 
-  // Unified scroll tracking
+  // Unified scroll tracking: only needed for hero re-lock when user scrolls back to top
   useEffect(() => {
-    const section = pipelineRef.current;
-    if (!section) return;
-
     function onScroll() {
       const sy = window.scrollY;
-      setScrollY(sy);
 
-      // Relock if scrolled back to top
+      // Relock and reset to slide 0 when user scrolls back to the very top
       if (sy <= 0) {
         setIsLocked(true);
-        setActiveSlide(2);
+        setActiveSlide(0);
       }
-
-      if (!section) return;
-      const rect = section.getBoundingClientRect();
-      const sectionHeight = section.offsetHeight;
-      const viewH = window.innerHeight;
-      const progress = Math.max(0, Math.min(1, (-rect.top) / (sectionHeight - viewH)));
-      setPipelineProgress(progress);
-      
-      const idx = Math.min(PIPELINE_STAGES.length - 1, Math.floor(progress * PIPELINE_STAGES.length));
-      setActiveStage(idx);
     }
 
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -487,12 +369,13 @@ export default function Home() {
 
       {/* ─── NAVIGATION (TWO-BAR MONOSPACE OVERLAY) ───────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-6 mix-blend-difference">
-        <span
-          className="text-xl font-bold tracking-tight text-[#F2F0EB]"
+        <a
+          href="/"
+          className="text-xl font-bold tracking-tight text-[#F2F0EB] no-underline hover:opacity-80 transition-opacity"
           style={{ fontFamily: "Playfair Display, Georgia, serif" }}
         >
           Rheo
-        </span>
+        </a>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           className="z-50 flex flex-col justify-between h-3.5 w-6 group focus:outline-none cursor-pointer"
@@ -1350,9 +1233,14 @@ const action      = response.data.action;        // "allow" | "sanitize" | "quar
                 <p className="text-[11px] font-mono uppercase tracking-widest text-[#F2F0EB] font-semibold">Live Firewall Log</p>
                 <p className="text-[10px] font-sans text-zinc-600 mt-0.5">Real-time feed of proxy requests and USDC settlements on Arc.</p>
               </div>
-              <button onClick={fetchHistory} className="text-[10px] font-mono uppercase tracking-wider border border-zinc-800 px-3 py-1.5 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition-colors rounded">
-                Refresh
-              </button>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-mono text-zinc-700">
+                  {Math.min(rowLimit, requests.length)}/{requests.length} rows
+                </span>
+                <button onClick={fetchHistory} className="text-[10px] font-mono uppercase tracking-wider border border-zinc-800 px-3 py-1.5 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition-colors rounded">
+                  Refresh
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto" style={{ background: "#0C0C0E" }}>
@@ -1371,7 +1259,7 @@ const action      = response.data.action;        // "allow" | "sanitize" | "quar
                         No logs yet. Run the playground to generate data.
                       </td>
                     </tr>
-                  ) : requests.map((req) => (
+                  ) : requests.slice(0, rowLimit).map((req) => (
                     <tr key={req.id} className="log-row border-b border-zinc-900/60 transition-colors">
                       <td className="px-5 py-3 font-mono text-zinc-500 whitespace-nowrap">
                         {mounted ? new Date(req.created_at).toLocaleTimeString() : "—"}
@@ -1405,11 +1293,23 @@ const action      = response.data.action;        // "allow" | "sanitize" | "quar
                 </tbody>
               </table>
             </div>
+
+            {/* Load more */}
+            {requests.length > rowLimit && (
+              <div className="flex justify-center mt-4">
+                <button
+                  onClick={() => setRowLimit(prev => prev + 25)}
+                  className="text-[10px] font-mono uppercase tracking-wider border border-zinc-800 px-5 py-2 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition-colors rounded"
+                >
+                  Load {Math.min(25, requests.length - rowLimit)} more
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* ─── FOOTER CTA (AMBER MESH GLOW CARD WITH WAITLIST INPUT) ────────── */}
+      {/* ─── FOOTER CTA ──────────────────────────────────────────────────────── */}
       <section className="px-6 pb-12" style={{ background: "#0A0A0B" }}>
         <div className="max-w-5xl mx-auto">
           <div className="amber-mesh-card dot-texture rounded-2xl overflow-hidden px-8 py-20 text-center relative">
@@ -1427,18 +1327,12 @@ const action      = response.data.action;        // "allow" | "sanitize" | "quar
               Every AI agent that browses the web is a potential attack vector. Rheo is the metered firewall that closes that gap — one nanopayment at a time.
             </p>
 
-            {/* Waitlist submission field */}
-            <form onSubmit={(e) => { e.preventDefault(); alert("Waitlist entry submitted!"); }} className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
-              <input
-                type="email"
-                required
-                placeholder="ENTER DEVELOPER EMAIL"
-                className="bg-[#0A0A0B]/60 border border-zinc-800 text-xs font-mono py-3.5 px-4 focus:outline-none focus:border-[#D97B3F]/50 text-center sm:text-left w-full uppercase tracking-wider text-[#F2F0EB] placeholder:text-zinc-700 rounded transition-colors"
-              />
-              <BracketButton className="w-full sm:w-auto justify-center whitespace-nowrap py-3.5 px-6">
-                ⌐ JOIN WAITLIST →⌐
-              </BracketButton>
-            </form>
+            <a
+              href="#dashboard"
+              className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest border border-[#D97B3F]/40 text-[#D97B3F] px-6 py-3.5 rounded hover:bg-[#D97B3F]/10 transition-colors"
+            >
+              ⌐ View Live Dashboard →
+            </a>
           </div>
         </div>
       </section>
