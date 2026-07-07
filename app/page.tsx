@@ -117,47 +117,12 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
 
-  // Pipeline stage tracking via IntersectionObserver
-  const [activeStage, setActiveStage] = useState(0);
-
-  // Unified scroll tracking: only needed for hero re-lock when user scrolls back to top
+  // Re-lock hero slider when user scrolls back to the very top
   useEffect(() => {
-    function onScroll() {
-      const sy = window.scrollY;
-
-      // Relock and reset to slide 0 when user scrolls back to the very top
-      if (sy <= 0) {
-        setIsLocked(true);
-        setActiveSlide(0);
-      }
-    }
-
+    const onScroll = () => { if (window.scrollY <= 0) { setIsLocked(true); setActiveSlide(0); } };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  // IntersectionObserver: drive activeStage from pipeline sentinel visibility
-  useEffect(() => {
-    if (!mounted) return;
-    const sentinels = document.querySelectorAll<HTMLElement>(".pipeline-sentinel");
-    if (!sentinels.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const idx = parseInt(entry.target.getAttribute("data-stage-idx") ?? "0", 10);
-            setActiveStage(idx);
-          }
-        });
-      },
-      // Trigger when the sentinel's top-half enters the middle of the viewport
-      { threshold: 0, rootMargin: "-30% 0px -60% 0px" }
-    );
-
-    sentinels.forEach((s) => observer.observe(s));
-    return () => observer.disconnect();
-  }, [mounted]);
 
   // Viewport slider gesture/wheel/keyboard interception
   useEffect(() => {
@@ -930,92 +895,69 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── PIPELINE SECTION (How Rheo Works) ─────────────────────────────── */}
-      <div
+      {/* ─── HOW RHEO WORKS ─────────────────────────────────────────────────── */}
+      <section
         id="pipeline"
-        className="relative border-b border-[#9C8A76]/20"
+        className="py-28 px-6 border-b border-[#9C8A76]/20"
         style={{ background: "#fbfaf7" }}
       >
-        {/* Sticky display panel — stays in view while user scrolls through the sentinels */}
-        <div className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden px-6 select-none">
+        <div className="max-w-2xl mx-auto">
+
           {/* Eyebrow */}
-          <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-[#9C8A76] mb-8">
+          <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-[#9C8A76] mb-16 text-center">
             How Rheo Works
           </p>
 
-          {/* Active item — small, bracketed, with description below */}
-          <div
-            className="relative inline-flex items-center justify-center px-10 py-3 mb-3"
-            style={{ transition: "all 0.4s ease" }}
-          >
-            <span className="absolute top-0 left-0 w-3 h-3 border-t-[1.5px] border-l-[1.5px] border-[#D97B3F]" />
-            <span className="absolute top-0 right-0 w-3 h-3 border-t-[1.5px] border-r-[1.5px] border-[#D97B3F]" />
-            <span className="absolute bottom-0 left-0 w-3 h-3 border-b-[1.5px] border-l-[1.5px] border-[#D97B3F]" />
-            <span className="absolute bottom-0 right-0 w-3 h-3 border-b-[1.5px] border-r-[1.5px] border-[#D97B3F]" />
-            <span
-              style={{
-                fontFamily: '"Space Grotesk", "Inter", sans-serif',
-                fontWeight: 700,
-                fontSize: "1rem",
-                letterSpacing: "0.12em",
-                color: "#9C8A76",
-                textTransform: "uppercase",
-                transition: "all 0.4s ease",
-              }}
-            >
-              {PIPELINE_STAGES[activeStage].label}
-            </span>
-          </div>
+          {/* Stage cards */}
+          <div className="flex flex-col gap-6">
+            {PIPELINE_STAGES.map((stage, i) => (
+              <motion.div
+                key={stage.label}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, amount: 0.3 }}
+                transition={{ duration: 0.45, ease: "easeOut" }}
+                className="relative border border-[#9C8A76]/25 p-8"
+                style={{ background: "#fbfaf7" }}
+              >
+                {/* Bracket corners on every card */}
+                <span className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#D97B3F]" />
+                <span className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#D97B3F]" />
+                <span className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#D97B3F]" />
+                <span className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#D97B3F]" />
 
-          <p
-            className="text-center font-mono mb-10"
-            style={{ fontSize: "0.68rem", color: "#9C8A76", maxWidth: "30rem", lineHeight: 1.8, transition: "all 0.4s ease" }}
-          >
-            {PIPELINE_STAGES[activeStage].description}
-          </p>
+                {/* Step index */}
+                <p className="text-[10px] font-mono text-[#9C8A76] mb-3 tracking-widest">
+                  0{i + 1}
+                </p>
 
-          {/* Remaining stages stacked as large text — fading progressively downward */}
-          <div className="flex flex-col items-center" style={{ lineHeight: 1.05 }}>
-            {PIPELINE_STAGES.map((stage, i) => {
-              const dist = i - activeStage;
-              const hidden = i <= activeStage;
-              const rawOpacity = hidden ? 0 : Math.max(0.07, 1 - (dist - 1) * 0.26);
-              return (
-                <span
-                  key={stage.label}
-                  aria-hidden={hidden}
+                {/* Stage label */}
+                <h3
+                  className="uppercase mb-4"
                   style={{
-                    fontFamily: '"Space Grotesk", "Inter", sans-serif',
+                    fontFamily: '"Space Grotesk", "Archivo", sans-serif',
                     fontWeight: 800,
-                    fontSize: "clamp(1.9rem, 4.5vw, 3.6rem)",
-                    letterSpacing: "-0.02em",
-                    textTransform: "uppercase",
+                    fontSize: "clamp(1.6rem, 3.5vw, 2.4rem)",
+                    letterSpacing: "-0.01em",
                     color: "#1a1410",
-                    opacity: rawOpacity,
-                    display: "block",
-                    transition: "opacity 0.5s ease, transform 0.5s ease",
-                    transform: hidden ? "translateY(-6px)" : "translateY(0)",
-                    pointerEvents: "none",
-                    userSelect: "none",
+                    lineHeight: 1,
                   }}
                 >
                   {stage.label}
-                </span>
-              );
-            })}
+                </h3>
+
+                {/* Description */}
+                <p
+                  className="font-mono leading-relaxed"
+                  style={{ fontSize: "0.72rem", color: "#7A6E64", maxWidth: "38rem" }}
+                >
+                  {stage.description}
+                </p>
+              </motion.div>
+            ))}
           </div>
         </div>
-
-        {/* Scroll sentinels — one per stage, each 100vh creates the scroll depth */}
-        {PIPELINE_STAGES.map((stage, i) => (
-          <div
-            key={stage.label}
-            data-stage-idx={String(i)}
-            className="pipeline-sentinel"
-            style={{ height: "100vh" }}
-          />
-        ))}
-      </div>
+      </section>
 
       {/* ─── DARK SECTION WRAPPER ─────────────────────────────────────────── */}
       <div className="relative" style={{ background: "#0A0A0B" }}>
