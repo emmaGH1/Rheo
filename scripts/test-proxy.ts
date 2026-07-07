@@ -58,7 +58,7 @@ async function main() {
   console.log(`\nGenerated Ephemeral Agent Wallet: ${ephemeralAccount.address}`);
 
   // 2. Fund the ephemeral wallet
-  const funderAccount = privateKeyToAccount(funderKey);
+  const funderAccount = privateKeyToAccount(funderKey as `0x${string}`);
   console.log(`Funding ephemeral wallet from Buyer wallet: ${funderAccount.address}...`);
 
   const publicClient = createPublicClient({
