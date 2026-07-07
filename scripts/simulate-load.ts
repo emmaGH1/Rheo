@@ -71,6 +71,9 @@ async function main() {
   console.log(`\n[Agent Setup] Generated Ephemeral Wallet: ${ephemeralAccount.address}`);
 
   // 2. Fund the ephemeral wallet
+  if (!funderKey) {
+    throw new Error("missing funder private key environment variable");
+  }
   const funderAccount = privateKeyToAccount(funderKey);
   console.log(`[Agent Setup] Funding ephemeral wallet from Buyer: ${funderAccount.address}...`);
 
@@ -147,7 +150,7 @@ async function main() {
 
       summary.total++;
       summary.successfulPayments++;
-      
+
       const amountPaid = parseFloat(payRes.formattedAmount);
       summary.totalUsdcPaid += amountPaid;
 
@@ -168,7 +171,7 @@ async function main() {
       console.log(`  Action Taken:  ${action.toUpperCase()}`);
       console.log(`  Reasoning:     ${reasoning}`);
       console.log(`  Tx Hash:       ${payRes.transaction}`);
-      
+
     } catch (error: any) {
       console.error(`Result: FAILED`);
       console.error(`  Error message: ${error.message || error}`);
@@ -179,7 +182,7 @@ async function main() {
   }
 
   // 5. Output beautiful final summary
-  const avgRisk = summary.riskScores.length > 0 
+  const avgRisk = summary.riskScores.length > 0
     ? (summary.riskScores.reduce((a, b) => a + b, 0) / summary.riskScores.length).toFixed(2)
     : "0.00";
 
