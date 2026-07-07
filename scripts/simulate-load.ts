@@ -74,7 +74,7 @@ async function main() {
   if (!funderKey) {
     throw new Error("missing funder private key environment variable");
   }
-  const funderAccount = privateKeyToAccount(funderKey);
+  const funderAccount = privateKeyToAccount(funderKey!);
   console.log(`[Agent Setup] Funding ephemeral wallet from Buyer: ${funderAccount.address}...`);
 
   const publicClient = createPublicClient({
