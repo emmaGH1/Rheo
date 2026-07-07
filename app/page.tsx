@@ -114,7 +114,11 @@ export default function Home() {
   const [simResult, setSimResult] = useState<any>(null);
   const [requests, setRequests] = useState<ProxyRequest[]>([]);
   const [metrics, setMetrics] = useState({ totalRequests: 0, volumeUsdc: 0, blockedThreats: 0 });
-  const [rowLimit, setRowLimit] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  // Pipeline stage tracking via IntersectionObserver
+  const [activeStage, setActiveStage] = useState(0);
 
   // Unified scroll tracking: only needed for hero re-lock when user scrolls back to top
   useEffect(() => {
@@ -131,6 +135,29 @@ export default function Home() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // IntersectionObserver: drive activeStage from pipeline sentinel visibility
+  useEffect(() => {
+    if (!mounted) return;
+    const sentinels = document.querySelectorAll<HTMLElement>(".pipeline-sentinel");
+    if (!sentinels.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const idx = parseInt(entry.target.getAttribute("data-stage-idx") ?? "0", 10);
+            setActiveStage(idx);
+          }
+        });
+      },
+      // Trigger when the sentinel's top-half enters the middle of the viewport
+      { threshold: 0, rootMargin: "-30% 0px -60% 0px" }
+    );
+
+    sentinels.forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
+  }, [mounted]);
 
   // Viewport slider gesture/wheel/keyboard interception
   useEffect(() => {
@@ -903,63 +930,91 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── LIGHT PIPELINE SECTION (How Rheo Works) ───────────────────────── */}
-      <div 
+      {/* ─── PIPELINE SECTION (How Rheo Works) ─────────────────────────────── */}
+      <div
         id="pipeline"
-        className="relative border-b border-[#9C8A76]/20 py-32 px-6" 
+        className="relative border-b border-[#9C8A76]/20"
         style={{ background: "#fbfaf7" }}
       >
-        <div className="max-w-xl mx-auto flex flex-col items-center gap-24">
-          <div className="text-center">
-            <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-[#9C8A76] mb-2">
-              How Rheo Works
-            </p>
+        {/* Sticky display panel — stays in view while user scrolls through the sentinels */}
+        <div className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden px-6 select-none">
+          {/* Eyebrow */}
+          <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-[#9C8A76] mb-8">
+            How Rheo Works
+          </p>
+
+          {/* Active item — small, bracketed, with description below */}
+          <div
+            className="relative inline-flex items-center justify-center px-10 py-3 mb-3"
+            style={{ transition: "all 0.4s ease" }}
+          >
+            <span className="absolute top-0 left-0 w-3 h-3 border-t-[1.5px] border-l-[1.5px] border-[#D97B3F]" />
+            <span className="absolute top-0 right-0 w-3 h-3 border-t-[1.5px] border-r-[1.5px] border-[#D97B3F]" />
+            <span className="absolute bottom-0 left-0 w-3 h-3 border-b-[1.5px] border-l-[1.5px] border-[#D97B3F]" />
+            <span className="absolute bottom-0 right-0 w-3 h-3 border-b-[1.5px] border-r-[1.5px] border-[#D97B3F]" />
+            <span
+              style={{
+                fontFamily: '"Space Grotesk", "Inter", sans-serif',
+                fontWeight: 700,
+                fontSize: "1rem",
+                letterSpacing: "0.12em",
+                color: "#9C8A76",
+                textTransform: "uppercase",
+                transition: "all 0.4s ease",
+              }}
+            >
+              {PIPELINE_STAGES[activeStage].label}
+            </span>
           </div>
 
-          <div className="w-full flex flex-col gap-28">
-            {PIPELINE_STAGES.map((stage) => (
-              <motion.div
-                key={stage.label}
-                initial={{ opacity: 0.35, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: false, amount: 0.55 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="relative flex flex-col items-center text-center select-none"
-              >
-                {/* Bracket corners wrapping stage header */}
-                <div className="relative inline-block px-8 py-4 mb-4">
-                  {/* Bracket corners */}
-                  <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[#D97B3F]" />
-                  <span className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-[#D97B3F]" />
-                  <span className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-[#D97B3F]" />
-                  <span className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-[#D97B3F]" />
+          <p
+            className="text-center font-mono mb-10"
+            style={{ fontSize: "0.68rem", color: "#9C8A76", maxWidth: "30rem", lineHeight: 1.8, transition: "all 0.4s ease" }}
+          >
+            {PIPELINE_STAGES[activeStage].description}
+          </p>
 
-                  {/* Stage label in Space Grotesk bold geometric display sans-serif */}
-                  <span
-                    className="uppercase leading-none select-none"
-                    style={{
-                      fontSize: "clamp(2rem, 5vw, 3.8rem)",
-                      fontFamily: '"Space Grotesk", "Inter", sans-serif',
-                      fontWeight: 800,
-                      letterSpacing: "-0.02em",
-                      color: "#1a1410"
-                    }}
-                  >
-                    {stage.label}
-                  </span>
-                </div>
-
-                {/* Monospace description */}
-                <p
-                  className="max-w-md text-xs leading-relaxed font-mono mt-2"
-                  style={{ color: "#7A6E64" }}
+          {/* Remaining stages stacked as large text — fading progressively downward */}
+          <div className="flex flex-col items-center" style={{ lineHeight: 1.05 }}>
+            {PIPELINE_STAGES.map((stage, i) => {
+              const dist = i - activeStage;
+              const hidden = i <= activeStage;
+              const rawOpacity = hidden ? 0 : Math.max(0.07, 1 - (dist - 1) * 0.26);
+              return (
+                <span
+                  key={stage.label}
+                  aria-hidden={hidden}
+                  style={{
+                    fontFamily: '"Space Grotesk", "Inter", sans-serif',
+                    fontWeight: 800,
+                    fontSize: "clamp(1.9rem, 4.5vw, 3.6rem)",
+                    letterSpacing: "-0.02em",
+                    textTransform: "uppercase",
+                    color: "#1a1410",
+                    opacity: rawOpacity,
+                    display: "block",
+                    transition: "opacity 0.5s ease, transform 0.5s ease",
+                    transform: hidden ? "translateY(-6px)" : "translateY(0)",
+                    pointerEvents: "none",
+                    userSelect: "none",
+                  }}
                 >
-                  {stage.description}
-                </p>
-              </motion.div>
-            ))}
+                  {stage.label}
+                </span>
+              );
+            })}
           </div>
         </div>
+
+        {/* Scroll sentinels — one per stage, each 100vh creates the scroll depth */}
+        {PIPELINE_STAGES.map((stage, i) => (
+          <div
+            key={stage.label}
+            data-stage-idx={String(i)}
+            className="pipeline-sentinel"
+            style={{ height: "100vh" }}
+          />
+        ))}
       </div>
 
       {/* ─── DARK SECTION WRAPPER ─────────────────────────────────────────── */}
@@ -1235,7 +1290,7 @@ const action      = response.data.action;        // "allow" | "sanitize" | "quar
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] font-mono text-zinc-700">
-                  {Math.min(rowLimit, requests.length)}/{requests.length} rows
+                  {requests.length === 0 ? "0" : `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, requests.length)}`} of {requests.length}
                 </span>
                 <button onClick={fetchHistory} className="text-[10px] font-mono uppercase tracking-wider border border-zinc-800 px-3 py-1.5 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition-colors rounded">
                   Refresh
@@ -1259,7 +1314,7 @@ const action      = response.data.action;        // "allow" | "sanitize" | "quar
                         No logs yet. Run the playground to generate data.
                       </td>
                     </tr>
-                  ) : requests.slice(0, rowLimit).map((req) => (
+                  ) : requests.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((req) => (
                     <tr key={req.id} className="log-row border-b border-zinc-900/60 transition-colors">
                       <td className="px-5 py-3 font-mono text-zinc-500 whitespace-nowrap">
                         {mounted ? new Date(req.created_at).toLocaleTimeString() : "—"}
@@ -1294,63 +1349,51 @@ const action      = response.data.action;        // "allow" | "sanitize" | "quar
               </table>
             </div>
 
-            {/* Load more */}
-            {requests.length > rowLimit && (
-              <div className="flex justify-center mt-4">
-                <button
-                  onClick={() => setRowLimit(prev => prev + 25)}
-                  className="text-[10px] font-mono uppercase tracking-wider border border-zinc-800 px-5 py-2 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition-colors rounded"
-                >
-                  Load {Math.min(25, requests.length - rowLimit)} more
-                </button>
+            {/* Pagination controls */}
+            {requests.length > PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-4 px-1">
+                <span className="text-[10px] font-mono text-zinc-700">
+                  Page {currentPage} of {Math.ceil(requests.length / PAGE_SIZE)}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="text-[10px] font-mono uppercase tracking-wider border border-zinc-800 px-4 py-1.5 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded"
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(requests.length / PAGE_SIZE), p + 1))}
+                    disabled={currentPage >= Math.ceil(requests.length / PAGE_SIZE)}
+                    className="text-[10px] font-mono uppercase tracking-wider border border-zinc-800 px-4 py-1.5 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded"
+                  >
+                    Next →
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
       </section>
 
-      {/* ─── FOOTER CTA ──────────────────────────────────────────────────────── */}
-      <section className="px-6 pb-12" style={{ background: "#0A0A0B" }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="amber-mesh-card dot-texture rounded-2xl overflow-hidden px-8 py-20 text-center relative">
-            <p className="text-[10px] font-mono uppercase tracking-[0.4em] text-[#D97B3F] mb-6">
-              Built for Lepton × Circle · Arc Testnet
-            </p>
-            <h2
-              className="text-4xl sm:text-5xl mb-6 leading-tight"
-              style={{ fontFamily: "Playfair Display, Georgia, serif", color: "#F2F0EB", fontWeight: 500, letterSpacing: "-0.02em" }}
-            >
-              Crafted for both
-              <br />human and agent.
-            </h2>
-            <p className="text-sm font-sans text-[#8C8A85] mb-10 max-w-md mx-auto leading-relaxed">
-              Every AI agent that browses the web is a potential attack vector. Rheo is the metered firewall that closes that gap — one nanopayment at a time.
-            </p>
 
-            <a
-              href="#dashboard"
-              className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-widest border border-[#D97B3F]/40 text-[#D97B3F] px-6 py-3.5 rounded hover:bg-[#D97B3F]/10 transition-colors"
-            >
-              ⌐ View Live Dashboard →
-            </a>
-          </div>
-        </div>
-      </section>
 
       {/* ─── FOOTER ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-zinc-900 px-8 py-8 relative z-10" style={{ background: "#0A0A0B" }}>
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span
-            className="text-lg font-semibold"
+          <a
+            href="/"
+            className="text-lg font-semibold no-underline hover:opacity-70 transition-opacity"
             style={{ fontFamily: "Playfair Display, Georgia, serif", color: "#F2F0EB" }}
           >
             Rheo
-          </span>
-          <div className="flex gap-8 text-[10px] font-mono uppercase tracking-widest text-zinc-600">
-            <span>x402 Protocol</span>
-            <span>Circle Gateway</span>
-            <span>Arc Testnet</span>
-            <span>Groq · Llama-3</span>
+          </a>
+          <div className="flex gap-8 text-[10px] font-mono uppercase tracking-widest">
+            <a href="https://x402.org" target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-zinc-400 transition-colors">x402 Protocol</a>
+            <a href="https://developers.circle.com/" target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-zinc-400 transition-colors">Circle Gateway</a>
+            <a href="https://testnet.arc.network" target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-zinc-400 transition-colors">Arc Testnet</a>
+            <a href="https://groq.com" target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-zinc-400 transition-colors">Groq · Llama-3</a>
           </div>
           <p className="text-[10px] font-mono text-zinc-700">© 2026 Lepton Hackathon</p>
         </div>
